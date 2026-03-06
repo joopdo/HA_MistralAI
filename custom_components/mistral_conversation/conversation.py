@@ -21,6 +21,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import intent, llm
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from voluptuous_openapi import convert
 
 from .const import (
     AGENT_CAPABLE_MODELS,
@@ -54,14 +55,14 @@ async def async_setup_entry(
 # Helpers: convert between HA chat_log and Mistral API formats
 # ---------------------------------------------------------------------------
 
-def _format_tool(tool: llm.Tool) -> dict[str, Any]:
+def _format_tool(tool: llm.Tool, custom_serializer: Any = None) -> dict[str, Any]:
     """Convert an HA LLM tool to Mistral function-calling format."""
     return {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.description or "",
-            "parameters": tool.parameters.schema if hasattr(tool.parameters, "schema") else {},
+            "parameters": convert(tool.parameters, custom_serializer=custom_serializer),
         },
     }
 
@@ -246,7 +247,10 @@ class MistralConversationEntity(ConversationEntity):
         # Build Mistral tools from HA's LLM API
         tools: list[dict[str, Any]] | None = None
         if chat_log.llm_api:
-            tools = [_format_tool(tool) for tool in chat_log.llm_api.tools]
+            tools = [
+                _format_tool(tool, chat_log.llm_api.custom_serializer)
+                for tool in chat_log.llm_api.tools
+            ]
 
         model = opts.get(CONF_MODEL, DEFAULT_MODEL)
         max_tokens = int(opts.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS))
