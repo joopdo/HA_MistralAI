@@ -110,12 +110,21 @@ def _format_tool(tool: llm.Tool, custom_serializer: Any = None) -> dict[str, Any
     }
 
 
+def _to_mistral_id(ha_id: str) -> str:
+    """Convert an HA tool_call ID to a Mistral-compatible 9-char alphanumeric ID."""
+    import hashlib
+    # Mistral requires exactly 9 chars, a-zA-Z0-9
+    digest = hashlib.md5(ha_id.encode()).hexdigest()[:9]
+    return digest
+
+
 def _convert_chat_log_to_messages(
     chat_log: conversation.ChatLog,
 ) -> list[dict[str, Any]]:
     """Convert HA ChatLog content into Mistral chat completions messages.
 
     All values are passed through _sanitize() to guarantee string dict keys.
+    Tool call IDs are converted to Mistral-compatible 9-char format.
     """
     messages: list[dict[str, Any]] = []
     for content in chat_log.content:
@@ -132,7 +141,7 @@ def _convert_chat_log_to_messages(
             if content.tool_calls:
                 msg["tool_calls"] = [
                     {
-                        "id": str(tc.id),
+                        "id": _to_mistral_id(str(tc.id)),
                         "type": "function",
                         "function": {
                             "name": str(tc.tool_name),
@@ -151,7 +160,7 @@ def _convert_chat_log_to_messages(
         elif isinstance(content, conversation.ToolResultContent):
             messages.append({
                 "role": "tool",
-                "tool_call_id": str(content.tool_call_id),
+                "tool_call_id": _to_mistral_id(str(content.tool_call_id)),
                 "name": str(content.tool_name),
                 "content": json.dumps(
                     _sanitize(content.tool_result)
