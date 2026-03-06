@@ -87,7 +87,7 @@ def _convert_chat_log_to_messages(
                         "type": "function",
                         "function": {
                             "name": tc.tool_name,
-                            "arguments": json.dumps(tc.tool_args),
+                            "arguments": json.dumps(tc.tool_args, default=str),
                         },
                     }
                     for tc in content.tool_calls
@@ -100,7 +100,7 @@ def _convert_chat_log_to_messages(
                 "role": "tool",
                 "tool_call_id": content.tool_call_id,
                 "name": content.tool_name,
-                "content": json.dumps(content.tool_result),
+                "content": json.dumps(content.tool_result, default=str),
             })
     return messages
 
